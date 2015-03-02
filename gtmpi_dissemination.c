@@ -9,7 +9,7 @@
     type flags = record
         myflags : array [0..1] of array [0..LogP - 1] of Boolean
 	partnerflags : array [0..1] of array [0..LogP - 1] of ^Boolean
-	
+
     processor private parity : integer := 0
     processor private sense : Boolean := true
     processor private localflags : ^flags
@@ -32,8 +32,55 @@
 	parity := 1 - parity
 */
 
+typedef struct _flags {
+	myflags *int[2];
+	partnerflags **int[2];
+} flags;
+
+static flags* allnodes;
+static int* parity_array;
+static int* sense_array;
+
+
+int power(int x, unsigned int y) {
+	if (y == 0)
+		return 1;
+	else if (y == 1)
+		return x;
+	else if (y % 2 == 0)
+		return power(x, y/2) * power(x, y/2);
+	else
+		return x*power(x, y/2) * power(x, y/2);
+}
 
 void gtmpi_init(int num_threads){
+	int i, j, r, k, v, LogP;
+	v = 1;
+	LogP = 0;
+	while( v < num_threads){
+		v *= 2;
+		LogP++;
+	}
+	allnodes = (flags**) malloc(sizeof(flags*) * num_threads);
+	for (i = 0; i < num_threads; i++) {
+		allnodes[i] = (flags*) malloc(sizeof(flags));
+		for (r = 0; r < 2; r++) {
+			allnodes[i].myflags[r] = (int *) (malloc(sizeof(int) * LogP));
+			for (k = 0; k < LogP; k++)
+				allnodes[i].myflags[r][k] = 0;
+		}
+	}
+
+	for (i = 0; i < num_threads; i++) {
+		for (r = 0; r < 2; r++) {
+			allnodes[i].partnerflags[r] = (int **) (malloc(sizeof(int*) * LogP));
+			for (k = 0; k < LogP; k++){
+				j = (i+power(2,k)) % num_threads;
+				allnodes[i].partnerflags[r][k] = &(allnodes[j].myflags[r][k]);
+			}
+		}
+	}
+
 
 }
 
