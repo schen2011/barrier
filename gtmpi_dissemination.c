@@ -98,7 +98,7 @@ void gtmpi_barrier(){
 	// if parity = 1
 	// 	sense := not sense
 	// parity := 1 - parity
-	int i, j, LogP, parity, sense;
+	int instance, j, LogP, parity, sense;
 	int id,num_processes;
 	flags* localflags;
 	MPI_Comm_size(MPI_COMM_WORLD,&num_processes);
@@ -108,15 +108,13 @@ void gtmpi_barrier(){
 	localflags = allnodes[id];
 	parity = parity_array[id];
 	sense = sense_array[id];
-	for (i = 0; i < num_processes; i++) {
-		*(localflags->partnerflags[parity][i]) = sense
-		if (localflags->myflags[parity][i] == sense)
-			break;
+	for (instance = 0; instance < LogP; instance++) {
+		*(localflags->partnerflags[parity][instance]) = sense
+		while (localflags->myflags[parity][instance] == sense);
 	}
 	if (parity == 1)
 		sense_array[id] = !sense;
 	parity_array[id] = 1 - parity;
-
 }
 
 void gtmpi_finalize(){
