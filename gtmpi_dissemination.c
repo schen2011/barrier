@@ -37,7 +37,7 @@ typedef struct _flags {
 	partnerflags **int[2];
 } flags;
 
-static flags* allnodes;
+static flags** allnodes;
 static int* parity_array;
 static int* sense_array;
 
@@ -53,21 +53,27 @@ int power(int x, unsigned int y) {
 		return x*power(x, y/2) * power(x, y/2);
 }
 
-void gtmpi_init(int num_threads){
-	int i, j, r, k, v, LogP;
+int log2(int x) {
+	int v, y;
 	v = 1;
-	LogP = 0;
-	while( v < num_threads){
+	y = 0;
+	while( v < x){
 		v *= 2;
-		LogP++;
+		y++;
 	}
+	return y;
+}
+
+void gtmpi_init(int num_threads){
+	int i, j, r, k, LogP;
+	LogP = log2(num_threads);
 	allnodes = (flags**) malloc(sizeof(flags*) * num_threads);
 	for (i = 0; i < num_threads; i++) {
 		allnodes[i] = (flags*) malloc(sizeof(flags));
 		for (r = 0; r < 2; r++) {
-			allnodes[i].myflags[r] = (int *) (malloc(sizeof(int) * LogP));
+			allnodes[i]->myflags[r] = (int *) (malloc(sizeof(int) * LogP));
 			for (k = 0; k < LogP; k++)
-				allnodes[i].myflags[r][k] = 0;
+				allnodes[i]->myflags[r][k] = 0;
 		}
 	}
 
@@ -85,9 +91,34 @@ void gtmpi_init(int num_threads){
 }
 
 void gtmpi_barrier(){
+	// procedure dissemination_barrier
+	// 	for instance : integer :0 to LogP-1
+	// 	localflags^.partnerflags[parity][instance]^ := sense
+	// 	repeat until localflags^.myflags[parity][instance] = sense
+	// if parity = 1
+	// 	sense := not sense
+	// parity := 1 - parity
+	int i, j, LogP, parity, sense;
+	int id,num_processes;
+	flags* localflags;
+	MPI_Comm_size(MPI_COMM_WORLD,&num_processes);
+	MPI_Comm_rank(MPI_COMM_WORLD,&id);
+	LogP = log2(num_processes);
+
+	localflags = allnodes[id];
+	parity = parity_array[id];
+	sense = sense_array[id];
+	for (i = 0; i < num_processes; i++) {
+		*(localflags->partnerflags[parity][i]) = sense
+		if (localflags->myflags[parity][i] == sense)
+			break;
+	}
+	if (parity == 1)
+		sense_array[id] = !sense;
+	parity_array[id] = 1 - parity;
 
 }
 
 void gtmpi_finalize(){
-
+	free(allnodes);
 }
